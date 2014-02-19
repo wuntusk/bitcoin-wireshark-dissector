@@ -66,7 +66,7 @@ static gint hf_msg_version_timestamp = -1;
 static gint hf_msg_version_addr_me = -1;
 static gint hf_msg_version_addr_you = -1;
 static gint hf_msg_version_nonce = -1;
-static gint hf_msg_version_subver = -1;
+static gint hf_msg_version_useragent = -1;
 static gint hf_msg_version_start_height = -1;
 
 /* addr message */
@@ -347,7 +347,7 @@ static void
 dissect_bitcoin_msg_version(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree)
 {
   proto_item *ti;
-  gint        subver_length;
+  gint        useragent_length;
   guint32     version;
   guint32     offset = 0;
 
@@ -382,11 +382,11 @@ dissect_bitcoin_msg_version(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *t
     proto_tree_add_item(tree, hf_msg_version_nonce, tvb, offset, 8, ENC_LITTLE_ENDIAN);
     offset += 8;
 
-    /* find null terminated subver */
-    subver_length = 0;
-    subver_length = tvb_strsize(tvb, offset);
-    proto_tree_add_item(tree, hf_msg_version_subver, tvb, offset, subver_length, ENC_ASCII|ENC_NA);
-    offset += subver_length;
+    /* find var_str useragent */
+    useragent_length = tvb_get_guint8(tvb, offset);
+    offset++;
+    proto_tree_add_item(tree, hf_msg_version_useragent, tvb, offset, useragent_length, ENC_ASCII|ENC_NA);
+    offset += useragent_length;
 
     if (version >= 209)
     {
@@ -966,8 +966,8 @@ proto_register_bitcoin(void)
     { &hf_msg_version_nonce,
       { "Random nonce", "bitcoin.version.nonce", FT_UINT64, BASE_HEX, NULL, 0x0, NULL, HFILL }
     },
-    { &hf_msg_version_subver,
-      { "Sub-version string", "bitcoin.version.subver", FT_STRINGZ, BASE_NONE, NULL, 0x0, NULL, HFILL }
+    { &hf_msg_version_useragent,
+      { "User Agent string", "bitcoin.version.useragent", FT_STRINGZ, BASE_NONE, NULL, 0x0, NULL, HFILL }
     },
     { &hf_msg_version_start_height,
       { "Block start height", "bitcoin.version.start_height", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }
