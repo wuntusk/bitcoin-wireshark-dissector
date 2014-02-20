@@ -45,8 +45,9 @@
  * - Magic - 4 bytes
  * - Command - 12 bytes
  * - Payload length - 4 bytes
+ * - Checksum - 4 bytes
  */
-#define BITCOIN_HEADER_LENGTH 4+12+4
+#define BITCOIN_HEADER_LENGTH 4+12+4+4
 
 void proto_register_bitcoin(void);
 void proto_reg_handoff_bitcoin(void);
@@ -66,7 +67,7 @@ static gint hf_msg_version_timestamp = -1;
 static gint hf_msg_version_addr_me = -1;
 static gint hf_msg_version_addr_you = -1;
 static gint hf_msg_version_nonce = -1;
-static gint hf_msg_version_useragent = -1;
+static gint hf_msg_version_user_agent = -1;
 static gint hf_msg_version_start_height = -1;
 
 /* addr message */
@@ -95,6 +96,15 @@ static gint hf_msg_getdata_count64 = -1;
 static gint hf_bitcoin_msg_getdata = -1;
 static gint hf_msg_getdata_type = -1;
 static gint hf_msg_getdata_hash = -1;
+
+/* notfound message */
+static gint hf_msg_notfound_count8 = -1;
+static gint hf_msg_notfound_count16 = -1;
+static gint hf_msg_notfound_count32 = -1;
+static gint hf_msg_notfound_count64 = -1;
+static gint hf_bitcoin_msg_notfound = -1;
+static gint hf_msg_notfound_type = -1;
+static gint hf_msg_notfound_hash = -1;
 
 /* getblocks message */
 static gint hf_msg_getblocks_count8 = -1;
@@ -173,6 +183,7 @@ static gint ett_address = -1;
 static gint ett_addr_list = -1;
 static gint ett_inv_list = -1;
 static gint ett_getdata_list = -1;
+static gint ett_notfound_list = -1;
 static gint ett_getblocks_list = -1;
 static gint ett_getheaders_list = -1;
 static gint ett_tx_in_list = -1;
@@ -195,9 +206,6 @@ get_bitcoin_pdu_length(packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
 {
   guint32 length;
   length = BITCOIN_HEADER_LENGTH;
-
-  /* add checksum field */
-  length += 4;
 
   /* add payload length */
   length += tvb_get_letohl(tvb, offset+16);
@@ -347,8 +355,9 @@ static void
 dissect_bitcoin_msg_version(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree)
 {
   proto_item *ti;
-  gint        useragent_length;
-  guint32     version;
+  gint        varint_length;
+  guint64     user_agent_length;
+//  guint32     version;
   guint32     offset = 0;
 
   if (!tree)
@@ -357,7 +366,7 @@ dissect_bitcoin_msg_version(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *t
   ti   = proto_tree_add_item(tree, hf_bitcoin_msg_version, tvb, offset, -1, ENC_NA);
   tree = proto_item_add_subtree(ti, ett_bitcoin_msg);
 
-  version = tvb_get_letohl(tvb, offset);
+//  version = tvb_get_letohl(tvb, offset);
 
   proto_tree_add_item(tree, hf_msg_version_version, tvb, offset, 4, ENC_LITTLE_ENDIAN);
   offset += 4;
@@ -373,30 +382,30 @@ dissect_bitcoin_msg_version(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *t
   create_address_tree(tvb, ti, offset);
   offset += 26;
 
-  if (version >= 106)
-  {
-    ti = proto_tree_add_item(tree, hf_msg_version_addr_you, tvb, offset, 26, ENC_NA);
-    create_address_tree(tvb, ti, offset);
-    offset += 26;
+  ti = proto_tree_add_item(tree, hf_msg_version_addr_you, tvb, offset, 26, ENC_NA);
+  create_address_tree(tvb, ti, offset);
+  offset += 26;
 
-    proto_tree_add_item(tree, hf_msg_version_nonce, tvb, offset, 8, ENC_LITTLE_ENDIAN);
-    offset += 8;
+  proto_tree_add_item(tree, hf_msg_version_nonce, tvb, offset, 8, ENC_LITTLE_ENDIAN);
+  offset += 8;
 
-    /* find var_str useragent */
-    useragent_length = tvb_get_guint8(tvb, offset);
-    offset++;
-    proto_tree_add_item(tree, hf_msg_version_useragent, tvb, offset, useragent_length, ENC_ASCII|ENC_NA);
-    offset += useragent_length;
+  /* find var_str user_agent */
 
-    if (version >= 209)
-    {
-      proto_tree_add_item(tree, hf_msg_version_start_height, tvb, offset, 4, ENC_LITTLE_ENDIAN);
-      /* offset += 4; */
-    }
-  }
+  //user_agent_length = tvb_get_guint8(tvb, offset);
+  //offset++;
+
+  get_varint(tvb, offset, &varint_length, &user_agent_length);
+  add_varint_item(tree, tvb, offset, varint_length, hf_msg_addr_count8, hf_msg_addr_count16,
+                  hf_msg_addr_count32, hf_msg_addr_count64);
+  offset += varint_length;
+
+  proto_tree_add_item(tree, hf_msg_version_user_agent, tvb, offset, user_agent_length, ENC_ASCII|ENC_NA);
+  offset += user_agent_length;
+
+  proto_tree_add_item(tree, hf_msg_version_start_height, tvb, offset, 4, ENC_LITTLE_ENDIAN);
 }
 
-/**
+/*
  * Handler for address messages
  */
 static void
@@ -503,6 +512,44 @@ dissect_bitcoin_msg_getdata(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *t
     offset += 4;
 
     proto_tree_add_item(subtree, hf_msg_getdata_hash, tvb, offset, 32, ENC_NA);
+    offset += 32;
+  }
+}
+
+/**
+ * Handler for notfound messages
+ */
+static void
+dissect_bitcoin_msg_notfound(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree)
+{
+  proto_item *ti;
+  gint        length;
+  guint64     count;
+  guint32     offset = 0;
+
+  if (!tree)
+    return;
+
+  ti   = proto_tree_add_item(tree, hf_bitcoin_msg_notfound, tvb, offset, -1, ENC_NA);
+  tree = proto_item_add_subtree(ti, ett_bitcoin_msg);
+
+  get_varint(tvb, offset, &length, &count);
+  add_varint_item(tree, tvb, offset, length, hf_msg_notfound_count8, hf_msg_notfound_count16,
+                  hf_msg_notfound_count32, hf_msg_notfound_count64);
+
+  offset += length;
+
+  for (; count > 0; count--)
+  {
+    proto_tree *subtree;
+
+    ti = proto_tree_add_text(tree, tvb, offset, 36, "Inventory vector");
+    subtree = proto_item_add_subtree(ti, ett_notfound_list);
+
+    proto_tree_add_item(subtree, hf_msg_notfound_type, tvb, offset, 4, ENC_LITTLE_ENDIAN);
+    offset += 4;
+
+    proto_tree_add_item(subtree, hf_msg_notfound_hash, tvb, offset, 32, ENC_NA);
     offset += 32;
   }
 }
@@ -806,6 +853,7 @@ static msg_dissector_t msg_dissectors[] =
   {"addr",        dissect_bitcoin_msg_addr},
   {"inv",         dissect_bitcoin_msg_inv},
   {"getdata",     dissect_bitcoin_msg_getdata},
+  {"notfound",    dissect_bitcoin_msg_notfound},
   {"getblocks",   dissect_bitcoin_msg_getblocks},
   {"getheaders",  dissect_bitcoin_msg_getheaders},
   {"tx",          dissect_bitcoin_msg_tx},
@@ -814,15 +862,20 @@ static msg_dissector_t msg_dissectors[] =
   /* messages with no payload */
   {"verack",      dissect_bitcoin_msg_empty},
   {"getaddr",     dissect_bitcoin_msg_empty},
-  {"ping",        dissect_bitcoin_msg_empty},
-  {"pong",        dissect_bitcoin_msg_empty},
+  {"mempool",     dissect_bitcoin_msg_empty},
 
   /* messages not implemented */
   {"headers",     dissect_bitcoin_msg_empty},
   {"checkorder",  dissect_bitcoin_msg_empty},
   {"submitorder", dissect_bitcoin_msg_empty},
   {"reply",       dissect_bitcoin_msg_empty},
-  {"alert",       dissect_bitcoin_msg_empty}
+  {"alert",       dissect_bitcoin_msg_empty},
+  {"ping",        dissect_bitcoin_msg_empty},
+  {"pong",        dissect_bitcoin_msg_empty},
+  {"filterload",  dissect_bitcoin_msg_empty},
+  {"filteradd",   dissect_bitcoin_msg_empty},
+  {"filterclear", dissect_bitcoin_msg_empty},
+  {"merkleblock", dissect_bitcoin_msg_empty},
 };
 
 //////////////////////////////////
@@ -847,13 +900,10 @@ static void dissect_bitcoin_tcp_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tre
   proto_tree_add_item(tree, hf_bitcoin_magic,   tvb,  0,  4, ENC_BIG_ENDIAN);
   proto_tree_add_item(tree, hf_bitcoin_command, tvb,  4, 12, ENC_ASCII|ENC_NA);
   proto_tree_add_item(tree, hf_bitcoin_length,  tvb, 16,  4, ENC_LITTLE_ENDIAN);
+  proto_tree_add_item(tree, hf_bitcoin_checksum, tvb, 20, 4, ENC_BIG_ENDIAN);
+  offset = BITCOIN_HEADER_LENGTH;
 
-  offset = 20;
-
-    proto_tree_add_item(tree, hf_bitcoin_checksum, tvb, 20, 4, ENC_BIG_ENDIAN);
-    offset += 4;
-
-    /* TODO: verify checksum? */
+  /* TODO: verify checksum? */
 
   /* handle command specific message part */
   for (i = 0; i < array_length(msg_dissectors); i++)
@@ -966,8 +1016,8 @@ proto_register_bitcoin(void)
     { &hf_msg_version_nonce,
       { "Random nonce", "bitcoin.version.nonce", FT_UINT64, BASE_HEX, NULL, 0x0, NULL, HFILL }
     },
-    { &hf_msg_version_useragent,
-      { "User Agent string", "bitcoin.version.useragent", FT_STRINGZ, BASE_NONE, NULL, 0x0, NULL, HFILL }
+    { &hf_msg_version_user_agent,
+      { "User Agent string", "bitcoin.version.user_agent", FT_STRINGZ, BASE_NONE, NULL, 0x0, NULL, HFILL }
     },
     { &hf_msg_version_start_height,
       { "Block start height", "bitcoin.version.start_height", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }
@@ -1042,6 +1092,29 @@ proto_register_bitcoin(void)
       { "Data hash", "bitcoin.getdata.hash", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }
     },
 
+    /* notfound message */
+    { &hf_msg_notfound_count8,
+      { "Count", "bitcoin.notfound.count", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_notfound_count16,
+      { "Count", "bitcoin.notfound.count", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_notfound_count32,
+      { "Count", "bitcoin.notfound.count", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_notfound_count64,
+      { "Count", "bitcoin.notfound.count", FT_UINT64, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_bitcoin_msg_notfound,
+      { "Notfound message", "bitcoin.notfound", FT_NONE, BASE_NONE, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_notfound_type,
+      { "Type", "bitcoin.notfound.type", FT_UINT32, BASE_DEC, VALS(inv_types), 0x0, NULL, HFILL }
+    },
+    { &hf_msg_notfound_hash,
+      { "Data hash", "bitcoin.notfound.hash", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }
+    },
+
     /* getblocks message */
     { &hf_msg_getblocks_count8,
       { "Count", "bitcoin.getblocks.count", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }
@@ -1056,7 +1129,7 @@ proto_register_bitcoin(void)
       { "Count", "bitcoin.getblocks.count", FT_UINT64, BASE_DEC, NULL, 0x0, NULL, HFILL }
     },
     { &hf_bitcoin_msg_getblocks,
-      { "Getdata message", "bitcoin.getblocks", FT_NONE, BASE_NONE, NULL, 0x0, NULL, HFILL }
+      { "Getblocks message", "bitcoin.getblocks", FT_NONE, BASE_NONE, NULL, 0x0, NULL, HFILL }
     },
     { &hf_msg_getblocks_start,
       { "Starting hash", "bitcoin.getblocks.hash_start", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }
@@ -1243,6 +1316,7 @@ proto_register_bitcoin(void)
     &ett_addr_list,
     &ett_inv_list,
     &ett_getdata_list,
+    &ett_notfound_list,
     &ett_getblocks_list,
     &ett_getheaders_list,
     &ett_tx_in_list,
