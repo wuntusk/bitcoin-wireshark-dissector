@@ -59,6 +59,8 @@ static gint hf_bitcoin_command = -1;
 static gint hf_bitcoin_length = -1;
 static gint hf_bitcoin_checksum = -1;
 
+
+
 /* version message */
 static gint hf_bitcoin_msg_version = -1;
 static gint hf_msg_version_version = -1;
@@ -67,6 +69,10 @@ static gint hf_msg_version_timestamp = -1;
 static gint hf_msg_version_addr_me = -1;
 static gint hf_msg_version_addr_you = -1;
 static gint hf_msg_version_nonce = -1;
+static gint hf_msg_version_user_agent_length8 = -1;
+static gint hf_msg_version_user_agent_length16 = -1;
+static gint hf_msg_version_user_agent_length32 = -1;
+static gint hf_msg_version_user_agent_length64 = -1;
 static gint hf_msg_version_user_agent = -1;
 static gint hf_msg_version_start_height = -1;
 
@@ -171,6 +177,9 @@ static gint hf_msg_block_nonce = -1;
 static gint hf_bitcoin_msg_ping = -1;
 static gint hf_msg_ping_nonce = -1;
 
+/* reject */
+static gint hf_bitcoin_msg_reject = -1;
+
 /* services */
 static gint hf_services_network = -1;
 
@@ -185,6 +194,7 @@ static gint ett_bitcoin_msg = -1;
 static gint ett_services = -1;
 static gint ett_address = -1;
 static gint ett_ping = -1;
+static gint ett_reject = -1;
 static gint ett_inv_list = -1;
 static gint ett_getdata_list = -1;
 static gint ett_notfound_list = -1;
@@ -395,12 +405,9 @@ dissect_bitcoin_msg_version(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *t
 
   /* find var_str user_agent */
 
-  //user_agent_length = tvb_get_guint8(tvb, offset);
-  //offset++;
-
   get_varint(tvb, offset, &varint_length, &user_agent_length);
-  add_varint_item(tree, tvb, offset, varint_length, hf_msg_addr_count8, hf_msg_addr_count16,
-                  hf_msg_addr_count32, hf_msg_addr_count64);
+  add_varint_item(tree, tvb, offset, varint_length, hf_msg_version_user_agent_length8, hf_msg_version_user_agent_length16,
+                  hf_msg_version_user_agent_length32, hf_msg_version_user_agent_length64);
   offset += varint_length;
 
   proto_tree_add_item(tree, hf_msg_version_user_agent, tvb, offset, user_agent_length, ENC_ASCII|ENC_NA);
@@ -852,6 +859,23 @@ dissect_bitcoin_msg_ping(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
   offset += 8;
 
 }
+/*
+ * Handler for reject messages
+ */
+static void
+dissect_bitcoin_msg_reject(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree)
+{
+  proto_item *ti;
+  guint32     offset = 0;
+
+  if (!tree)
+    return;
+
+  ti   = proto_tree_add_item(tree, hf_bitcoin_msg_reject, tvb, offset, -1, ENC_NA);
+  tree = proto_item_add_subtree(ti, ett_reject);
+
+
+}
 
 /**
  * Handler for unimplemented or payload-less messages
@@ -882,6 +906,7 @@ static msg_dissector_t msg_dissectors[] =
   {"tx",          dissect_bitcoin_msg_tx},
   {"block",       dissect_bitcoin_msg_block},
   {"ping",        dissect_bitcoin_msg_ping},
+  {"reject",      dissect_bitcoin_msg_reject},
 
   /* messages with no payload */
   {"verack",      dissect_bitcoin_msg_empty},
@@ -1039,6 +1064,18 @@ proto_register_bitcoin(void)
     { &hf_msg_version_nonce,
       { "Random nonce", "bitcoin.version.nonce", FT_UINT64, BASE_HEX, NULL, 0x0, NULL, HFILL }
     },
+    { &hf_msg_version_user_agent_length8,
+      { "Length", "bitcoin.version.usr_agent.length", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_version_user_agent_length16,
+      { "Length", "bitcoin.version.usr_agent.length", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_version_user_agent_length32,
+      { "Length", "bitcoin.version.usr_agent.length", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_version_user_agent_length64,
+      { "Length", "bitcoin.version.usr_agent.length", FT_UINT64, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
     { &hf_msg_version_user_agent,
       { "User Agent string", "bitcoin.version.user_agent", FT_STRINGZ, BASE_NONE, NULL, 0x0, NULL, HFILL }
     },
@@ -1144,6 +1181,10 @@ proto_register_bitcoin(void)
     },
     { &hf_msg_ping_nonce,
       { "Nonce", "bitcoin.ping.nonce", FT_UINT64, BASE_HEX, NULL, 0x0, NULL, HFILL }
+    },
+    /* reject message */
+    { &hf_bitcoin_msg_reject,
+      { "Reject message", "bitcoin.reject", FT_NONE, BASE_NONE, NULL, 0x0, NULL, HFILL }
     },
 
     /* getblocks message */
@@ -1353,6 +1394,7 @@ proto_register_bitcoin(void)
     &ett_tx_in_outp,
     &ett_tx_out_list,
     &ett_ping,
+    &ett_reject,
   };
 
   module_t *bitcoin_module;
