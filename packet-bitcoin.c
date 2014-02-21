@@ -167,6 +167,10 @@ static gint hf_msg_block_time = -1;
 static gint hf_msg_block_bits = -1;
 static gint hf_msg_block_nonce = -1;
 
+/* ping */
+static gint hf_bitcoin_msg_ping = -1;
+static gint hf_msg_ping_nonce = -1;
+
 /* services */
 static gint hf_services_network = -1;
 
@@ -180,7 +184,7 @@ static gint ett_bitcoin = -1;
 static gint ett_bitcoin_msg = -1;
 static gint ett_services = -1;
 static gint ett_address = -1;
-static gint ett_addr_list = -1;
+static gint ett_ping = -1;
 static gint ett_inv_list = -1;
 static gint ett_getdata_list = -1;
 static gint ett_notfound_list = -1;
@@ -829,6 +833,25 @@ dissect_bitcoin_msg_block(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
     offset = dissect_bitcoin_msg_tx_common(tvb, offset, pinfo, tree, msgnum);
   }
 }
+/*
+ * Handler for ping messages
+ */
+static void
+dissect_bitcoin_msg_ping(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree)
+{
+  proto_item *ti;
+  guint32     offset = 0;
+
+  if (!tree)
+    return;
+
+  ti   = proto_tree_add_item(tree, hf_bitcoin_msg_ping, tvb, offset, -1, ENC_NA);
+  tree = proto_item_add_subtree(ti, ett_ping);
+
+  proto_tree_add_item(tree, hf_msg_ping_nonce, tvb, offset, 8, ENC_LITTLE_ENDIAN);
+  offset += 8;
+
+}
 
 /**
  * Handler for unimplemented or payload-less messages
@@ -858,6 +881,7 @@ static msg_dissector_t msg_dissectors[] =
   {"getheaders",  dissect_bitcoin_msg_getheaders},
   {"tx",          dissect_bitcoin_msg_tx},
   {"block",       dissect_bitcoin_msg_block},
+  {"ping",        dissect_bitcoin_msg_ping},
 
   /* messages with no payload */
   {"verack",      dissect_bitcoin_msg_empty},
@@ -870,7 +894,6 @@ static msg_dissector_t msg_dissectors[] =
   {"submitorder", dissect_bitcoin_msg_empty},
   {"reply",       dissect_bitcoin_msg_empty},
   {"alert",       dissect_bitcoin_msg_empty},
-  {"ping",        dissect_bitcoin_msg_empty},
   {"pong",        dissect_bitcoin_msg_empty},
   {"filterload",  dissect_bitcoin_msg_empty},
   {"filteradd",   dissect_bitcoin_msg_empty},
@@ -1115,6 +1138,14 @@ proto_register_bitcoin(void)
       { "Data hash", "bitcoin.notfound.hash", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }
     },
 
+    /* ping message */
+    { &hf_bitcoin_msg_ping,
+      { "Ping message", "bitcoin.ping", FT_NONE, BASE_NONE, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_ping_nonce,
+      { "Nonce", "bitcoin.ping.nonce", FT_UINT64, BASE_HEX, NULL, 0x0, NULL, HFILL }
+    },
+
     /* getblocks message */
     { &hf_msg_getblocks_count8,
       { "Count", "bitcoin.getblocks.count", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }
@@ -1313,7 +1344,6 @@ proto_register_bitcoin(void)
     &ett_bitcoin_msg,
     &ett_services,
     &ett_address,
-    &ett_addr_list,
     &ett_inv_list,
     &ett_getdata_list,
     &ett_notfound_list,
@@ -1322,6 +1352,7 @@ proto_register_bitcoin(void)
     &ett_tx_in_list,
     &ett_tx_in_outp,
     &ett_tx_out_list,
+    &ett_ping,
   };
 
   module_t *bitcoin_module;
