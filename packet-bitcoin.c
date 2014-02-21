@@ -179,6 +179,9 @@ static gint hf_msg_ping_nonce = -1;
 
 /* reject */
 static gint hf_bitcoin_msg_reject = -1;
+static gint hf_msg_reject_command = -1;
+static gint hf_msg_reject_code = -1;
+static gint hf_msg_reject_reason = -1;
 
 /* services */
 static gint hf_services_network = -1;
@@ -214,6 +217,20 @@ static const value_string inv_types[] =
   { 2, "MSG_BLOCK" },
   { 0, NULL }
 };
+
+static const value_string msg_reject_codes[] =
+{
+  { 0x01, "REJECT_MALFORMED" },
+  { 0x10, "REJECT_INVALID" },
+  { 0x11, "REJECT_OBSOLETE" },
+  { 0x12, "REJECT_DUPLICATE" },
+  { 0x40, "REJECT_NONSTANDARD" },
+  { 0x41, "REJECT_DUST" },
+  { 0x42, "REJECT_INSUFFICIENTFEE" },
+  { 0x43, "REJECT_CHECKPOINT" },
+  { 0, NULL }
+};
+
 
 static guint
 get_bitcoin_pdu_length(packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
@@ -371,7 +388,6 @@ dissect_bitcoin_msg_version(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *t
   proto_item *ti;
   gint        varint_length;
   guint64     user_agent_length;
-//  guint32     version;
   guint32     offset = 0;
 
   if (!tree)
@@ -379,8 +395,6 @@ dissect_bitcoin_msg_version(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *t
 
   ti   = proto_tree_add_item(tree, hf_bitcoin_msg_version, tvb, offset, -1, ENC_NA);
   tree = proto_item_add_subtree(ti, ett_bitcoin_msg);
-
-//  version = tvb_get_letohl(tvb, offset);
 
   proto_tree_add_item(tree, hf_msg_version_version, tvb, offset, 4, ENC_LITTLE_ENDIAN);
   offset += 4;
@@ -867,6 +881,9 @@ dissect_bitcoin_msg_reject(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tr
 {
   proto_item *ti;
   guint32     offset = 0;
+  gint        varint_length;
+  guint64     str_length;
+  //guint8      error_code;
 
   if (!tree)
     return;
@@ -874,6 +891,23 @@ dissect_bitcoin_msg_reject(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tr
   ti   = proto_tree_add_item(tree, hf_bitcoin_msg_reject, tvb, offset, -1, ENC_NA);
   tree = proto_item_add_subtree(ti, ett_reject);
 
+  /* find var_str user_agent */
+
+  get_varint(tvb, offset, &varint_length, &str_length);
+  offset += varint_length;
+
+  proto_tree_add_item(tree, hf_msg_reject_command, tvb, offset, str_length, ENC_ASCII|ENC_NA);
+  offset += str_length;
+
+  //error_code = tvb_get_guint8(tvb, offset);
+  proto_tree_add_item(tree, hf_msg_reject_code, tvb, offset, 1, ENC_LITTLE_ENDIAN);
+  offset ++;
+
+  get_varint(tvb, offset, &varint_length, &str_length);
+  offset += varint_length;
+
+  proto_tree_add_item(tree, hf_msg_reject_reason, tvb, offset, str_length, ENC_ASCII|ENC_NA);
+  offset += str_length;
 
 }
 
@@ -1185,6 +1219,15 @@ proto_register_bitcoin(void)
     /* reject message */
     { &hf_bitcoin_msg_reject,
       { "Reject message", "bitcoin.reject", FT_NONE, BASE_NONE, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_reject_command,
+      { "Command", "bitcoin.reject.command", FT_STRINGZ, BASE_NONE, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_reject_code,
+      { "Code", "bitcoin.reject.code", FT_UINT8, BASE_HEX, VALS(msg_reject_codes), 0x0, NULL, HFILL }
+    },
+    { &hf_msg_reject_reason,
+      { "Reason", "bitcoin.reject.reason", FT_STRINGZ, BASE_NONE, NULL, 0x0, NULL, HFILL }
     },
 
     /* getblocks message */
