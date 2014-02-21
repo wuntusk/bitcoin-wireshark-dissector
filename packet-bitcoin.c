@@ -182,6 +182,7 @@ static gint hf_bitcoin_msg_reject = -1;
 static gint hf_msg_reject_command = -1;
 static gint hf_msg_reject_code = -1;
 static gint hf_msg_reject_reason = -1;
+static gint hf_msg_reject_hash = -1;
 
 /* services */
 static gint hf_services_network = -1;
@@ -909,6 +910,8 @@ dissect_bitcoin_msg_reject(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tr
   proto_tree_add_item(tree, hf_msg_reject_reason, tvb, offset, str_length, ENC_ASCII|ENC_NA);
   offset += str_length;
 
+  proto_tree_add_item(tree, hf_msg_reject_hash, tvb, offset, 32, ENC_NA);
+  offset += 32;
 }
 
 /**
@@ -1228,6 +1231,9 @@ proto_register_bitcoin(void)
     },
     { &hf_msg_reject_reason,
       { "Reason", "bitcoin.reject.reason", FT_STRINGZ, BASE_NONE, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_reject_hash,
+      { "Data hash", "bitcoin.reject.hash", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }
     },
 
     /* getblocks message */
