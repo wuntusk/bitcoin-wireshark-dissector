@@ -39,8 +39,10 @@
 #define BITCOIN_MAIN_MAGIC_NUMBER       0xD9B4BEF9
 #define BITCOIN_TESTNET_MAGIC_NUMBER    0xDAB5BFFA
 #define BITCOIN_TESTNET3_MAGIC_NUMBER   0x0709110B
+#define LITECOIN_MAIN_MAGIC_NUMBER      0xDBB6C0FB
+#define LITECOIN_TESTNET_MAGIC_NUMBER   0xDCB7C1FC
 #define DOGECOIN_MAIN_MAGIC_NUMBER      0xC0C0C0C0
-#define DOGECOIN_TESTNET_MAGIC_NUMBER   0xDCB7C1FC
+#define DOGECOIN_TESTNET_MAGIC_NUMBER   0xDCB7C1FC // dogecoin guys didn't change the magic number 
 
 /*
  * Minimum bitcoin identification header.
@@ -223,8 +225,9 @@ static const value_string magic_types[] =
   { 0xF9BEB4D9, "MAIN" },
   { 0xFABFBFDA, "REGTESTNET" },
   { 0x0B110907, "TESTNET3" },
-  { 0xC0C0C0C0, "DOGENET" },
-  { 0xFCC1B7DC, "DOGETESTNET" },
+  { 0xFBC0B6DB, "LITECOIN" },
+  { 0xFCC1B7DC, "LITETESTNET" },
+  { 0xC0C0C0C0, "DOGECOIN" },
   { 0, NULL }
 };
 static const value_string inv_types[] =
@@ -1083,9 +1086,10 @@ dissect_bitcoin_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *
   magic_number = tvb_get_letohl(tvb, 0);
   if ((magic_number != BITCOIN_MAIN_MAGIC_NUMBER) &&
       (magic_number != BITCOIN_TESTNET_MAGIC_NUMBER) &&
-      (magic_number != DOGECOIN_TESTNET_MAGIC_NUMBER) &&
-      (magic_number != DOGECOIN_MAIN_MAGIC_NUMBER) &&
-      (magic_number != BITCOIN_TESTNET3_MAGIC_NUMBER))
+      (magic_number != BITCOIN_TESTNET3_MAGIC_NUMBER) &&
+      (magic_number != LITECOIN_MAIN_MAGIC_NUMBER) &&
+      (magic_number != LITECOIN_TESTNET_MAGIC_NUMBER) &&
+      (magic_number != DOGECOIN_MAIN_MAGIC_NUMBER))
      return FALSE;
 
   /* Ok: This connection should always use the bitcoin dissector */
