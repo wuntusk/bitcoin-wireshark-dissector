@@ -39,6 +39,8 @@
 #define BITCOIN_MAIN_MAGIC_NUMBER       0xD9B4BEF9
 #define BITCOIN_TESTNET_MAGIC_NUMBER    0xDAB5BFFA
 #define BITCOIN_TESTNET3_MAGIC_NUMBER   0x0709110B
+#define DOGECOIN_MAIN_MAGIC_NUMBER      0xC0C0C0C0
+#define DOGECOIN_TESTNET_MAGIC_NUMBER   0xDCB7C1FC
 
 /*
  * Minimum bitcoin identification header.
@@ -216,6 +218,15 @@ static gint ett_tx_out_list = -1;
 static dissector_handle_t bitcoin_handle;
 static gboolean bitcoin_desegment  = TRUE;
 
+static const value_string magic_types[] =
+{
+  { 0xF9BEB4D9, "MAIN" },
+  { 0xFABFBFDA, "REGTESTNET" },
+  { 0x0B110907, "TESTNET3" },
+  { 0xC0C0C0C0, "DOGENET" },
+  { 0xFCC1B7DC, "DOGETESTNET" },
+  { 0, NULL }
+};
 static const value_string inv_types[] =
 {
   { 0, "ERROR" },
@@ -1072,6 +1083,8 @@ dissect_bitcoin_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *
   magic_number = tvb_get_letohl(tvb, 0);
   if ((magic_number != BITCOIN_MAIN_MAGIC_NUMBER) &&
       (magic_number != BITCOIN_TESTNET_MAGIC_NUMBER) &&
+      (magic_number != DOGECOIN_TESTNET_MAGIC_NUMBER) &&
+      (magic_number != DOGECOIN_MAIN_MAGIC_NUMBER) &&
       (magic_number != BITCOIN_TESTNET3_MAGIC_NUMBER))
      return FALSE;
 
@@ -1093,7 +1106,7 @@ proto_register_bitcoin(void)
 {
   static hf_register_info hf[] = {
     { &hf_bitcoin_magic,
-      { "Packet magic", "bitcoin.magic", FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }
+      { "Packet magic", "bitcoin.magic", FT_UINT32, BASE_HEX, VALS(magic_types), 0x0, NULL, HFILL }
     },
     { &hf_bitcoin_command,
       { "Command name", "bitcoin.command", FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }
