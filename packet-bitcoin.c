@@ -177,6 +177,10 @@ static gint hf_msg_block_nonce = -1;
 static gint hf_bitcoin_msg_ping = -1;
 static gint hf_msg_ping_nonce = -1;
 
+/* pong */
+static gint hf_bitcoin_msg_pong = -1;
+static gint hf_msg_pong_nonce = -1;
+
 /* reject */
 static gint hf_bitcoin_msg_reject = -1;
 static gint hf_msg_reject_command = -1;
@@ -198,6 +202,7 @@ static gint ett_bitcoin_msg = -1;
 static gint ett_services = -1;
 static gint ett_address = -1;
 static gint ett_ping = -1;
+static gint ett_pong = -1;
 static gint ett_reject = -1;
 static gint ett_inv_list = -1;
 static gint ett_getdata_list = -1;
@@ -874,6 +879,27 @@ dissect_bitcoin_msg_ping(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
   offset += 8;
 
 }
+
+/*
+ * Handler for pong messages
+ */
+static void
+dissect_bitcoin_msg_pong(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree)
+{
+  proto_item *ti;
+  guint32     offset = 0;
+
+  if (!tree)
+    return;
+
+  ti   = proto_tree_add_item(tree, hf_bitcoin_msg_pong, tvb, offset, -1, ENC_NA);
+  tree = proto_item_add_subtree(ti, ett_pong);
+
+  proto_tree_add_item(tree, hf_msg_pong_nonce, tvb, offset, 8, ENC_LITTLE_ENDIAN);
+  offset += 8;
+
+}
+
 /*
  * Handler for reject messages
  */
@@ -943,6 +969,7 @@ static msg_dissector_t msg_dissectors[] =
   {"tx",          dissect_bitcoin_msg_tx},
   {"block",       dissect_bitcoin_msg_block},
   {"ping",        dissect_bitcoin_msg_ping},
+  {"pong",        dissect_bitcoin_msg_pong},
   {"reject",      dissect_bitcoin_msg_reject},
 
   /* messages with no payload */
@@ -956,7 +983,6 @@ static msg_dissector_t msg_dissectors[] =
   {"submitorder", dissect_bitcoin_msg_empty},
   {"reply",       dissect_bitcoin_msg_empty},
   {"alert",       dissect_bitcoin_msg_empty},
-  {"pong",        dissect_bitcoin_msg_empty},
   {"filterload",  dissect_bitcoin_msg_empty},
   {"filteradd",   dissect_bitcoin_msg_empty},
   {"filterclear", dissect_bitcoin_msg_empty},
@@ -1219,6 +1245,13 @@ proto_register_bitcoin(void)
     { &hf_msg_ping_nonce,
       { "Nonce", "bitcoin.ping.nonce", FT_UINT64, BASE_HEX, NULL, 0x0, NULL, HFILL }
     },
+    /* pong message */
+    { &hf_bitcoin_msg_pong,
+      { "Pong message", "bitcoin.pong", FT_NONE, BASE_NONE, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_pong_nonce,
+      { "Nonce", "bitcoin.pong.nonce", FT_UINT64, BASE_HEX, NULL, 0x0, NULL, HFILL }
+    },
     /* reject message */
     { &hf_bitcoin_msg_reject,
       { "Reject message", "bitcoin.reject", FT_NONE, BASE_NONE, NULL, 0x0, NULL, HFILL }
@@ -1443,6 +1476,7 @@ proto_register_bitcoin(void)
     &ett_tx_in_outp,
     &ett_tx_out_list,
     &ett_ping,
+    &ett_pong,
     &ett_reject,
   };
 
