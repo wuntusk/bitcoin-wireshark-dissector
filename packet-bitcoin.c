@@ -192,6 +192,23 @@ static gint hf_msg_reject_code = -1;
 static gint hf_msg_reject_reason = -1;
 static gint hf_msg_reject_hash = -1;
 
+/* alert */
+static gint hf_bitcoin_msg_alert = -1;
+static gint hf_msg_alert_message = -1;
+static gint hf_msg_alert_msg_length8 = -1;
+static gint hf_msg_alert_msg_length16 = -1;
+static gint hf_msg_alert_msg_length32 = -1;
+static gint hf_msg_alert_msg_length64 = -1;
+static gint hf_msg_alert_version = -1;
+static gint hf_msg_alert_relayuntil = -1;
+static gint hf_msg_alert_expiration = -1;
+static gint hf_msg_alert_signature = -1;
+static gint hf_msg_alert_signature_length8 = -1;
+static gint hf_msg_alert_signature_length16 = -1;
+static gint hf_msg_alert_signature_length32 = -1;
+static gint hf_msg_alert_signature_length64 = -1;
+static gint hf_msg_alert_signature_data = -1;
+
 /* services */
 static gint hf_services_network = -1;
 
@@ -208,6 +225,9 @@ static gint ett_address = -1;
 static gint ett_ping = -1;
 static gint ett_pong = -1;
 static gint ett_reject = -1;
+static gint ett_alert = -1;
+static gint ett_alert_sig = -1;
+static gint ett_alert_message = -1;
 static gint ett_inv_list = -1;
 static gint ett_getdata_list = -1;
 static gint ett_notfound_list = -1;
@@ -954,6 +974,54 @@ dissect_bitcoin_msg_reject(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tr
   offset += 32;
 }
 
+/*
+ * Handler for alert messages
+ */
+static void
+dissect_bitcoin_msg_alert(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree)
+{
+  proto_item *ti;
+  guint32     offset = 0;
+  gint        varint_length;
+  guint64     msg_length,sig_length;
+  proto_tree  *subtree;
+
+  if (!tree)
+    return;
+
+  ti   = proto_tree_add_item(tree, hf_bitcoin_msg_alert, tvb, offset, -1, ENC_NA);
+  tree = proto_item_add_subtree(ti, ett_alert);
+
+  /* message portion*/
+
+  ti   = proto_tree_add_item(tree, hf_msg_alert_message, tvb, offset, -1, ENC_NA);
+  subtree = proto_item_add_subtree(ti, ett_alert_message);
+  get_varint(tvb, offset, &varint_length, &msg_length);
+  add_varint_item(subtree, tvb, offset, varint_length, hf_msg_alert_msg_length8, hf_msg_alert_msg_length16,
+                  hf_msg_alert_msg_length32, hf_msg_alert_msg_length64);
+  offset += varint_length;
+
+  /* version */
+  proto_tree_add_item(subtree, hf_msg_alert_version,  tvb, offset,  4, ENC_LITTLE_ENDIAN);
+  offset += 4;
+
+  proto_tree_add_item(subtree, hf_msg_alert_relayuntil, tvb, offset, 8, ENC_TIME_TIMESPEC|ENC_LITTLE_ENDIAN);
+  offset += 8;
+  proto_tree_add_item(subtree, hf_msg_alert_expiration, tvb, offset, 8, ENC_TIME_TIMESPEC|ENC_LITTLE_ENDIAN);
+  offset += 8;
+  offset += (msg_length-20);
+
+  /* signature portion*/
+  ti   = proto_tree_add_item(tree, hf_msg_alert_signature, tvb, offset, -1, ENC_NA);
+  subtree = proto_item_add_subtree(ti, ett_alert_sig);
+  get_varint(tvb, offset, &varint_length, &sig_length);
+  offset += varint_length;
+  add_varint_item(subtree, tvb, offset, varint_length, hf_msg_alert_signature_length8, hf_msg_alert_signature_length16,
+                  hf_msg_alert_signature_length32, hf_msg_alert_signature_length64);
+  proto_tree_add_item(subtree, hf_msg_alert_signature_data, tvb, offset, sig_length, ENC_NA);
+  offset += sig_length;
+}
+
 /**
  * Handler for unimplemented or payload-less messages
  */
@@ -985,6 +1053,7 @@ static msg_dissector_t msg_dissectors[] =
   {"ping",        dissect_bitcoin_msg_ping},
   {"pong",        dissect_bitcoin_msg_pong},
   {"reject",      dissect_bitcoin_msg_reject},
+  {"alert",       dissect_bitcoin_msg_alert},
 
   /* messages with no payload */
   {"verack",      dissect_bitcoin_msg_empty},
@@ -996,7 +1065,6 @@ static msg_dissector_t msg_dissectors[] =
   {"checkorder",  dissect_bitcoin_msg_empty},
   {"submitorder", dissect_bitcoin_msg_empty},
   {"reply",       dissect_bitcoin_msg_empty},
-  {"alert",       dissect_bitcoin_msg_empty},
   {"filterload",  dissect_bitcoin_msg_empty},
   {"filteradd",   dissect_bitcoin_msg_empty},
   {"filterclear", dissect_bitcoin_msg_empty},
@@ -1285,6 +1353,52 @@ proto_register_bitcoin(void)
     { &hf_msg_reject_hash,
       { "Data hash", "bitcoin.reject.hash", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }
     },
+    /* alert message */
+    { &hf_bitcoin_msg_alert,
+      { "Alert message", "bitcoin.alert", FT_NONE, BASE_NONE, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_message,
+      { "Message", "bitcoin.alert.message", FT_NONE, BASE_NONE, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_msg_length8,
+      { "Length", "bitcoin.alert.msg.length", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_msg_length16,
+      { "Length", "bitcoin.alert.msg.length", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_msg_length32,
+      { "Length", "bitcoin.alert.msg.length", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_msg_length64,
+      { "Length", "bitcoin.alert.msg.length", FT_UINT64, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_version,
+      { "Version", "bitcoin.alert.message.version", FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_relayuntil,
+      { "Relay until", "bitcoin.alert.message.relayuntil", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_LOCAL, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_expiration,
+      { "Expiration", "bitcoin.alert.message.expiration", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_LOCAL, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_signature,
+      { "Signature", "bitcoin.alert.signature", FT_NONE, BASE_NONE, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_signature_length8,
+      { "Length", "bitcoin.alert.signature.length", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_signature_length16,
+      { "Length", "bitcoin.alert.signature.length", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_signature_length32,
+      { "Length", "bitcoin.alert.signature.length", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_signature_length64,
+      { "Length", "bitcoin.alert.signature.length", FT_UINT64, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_signature_data,
+      { "Data", "bitcoin.alert.signature.data", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }
+    },
 
     /* getblocks message */
     { &hf_msg_getblocks_count8,
@@ -1495,6 +1609,9 @@ proto_register_bitcoin(void)
     &ett_ping,
     &ett_pong,
     &ett_reject,
+    &ett_alert,
+    &ett_alert_sig,
+    &ett_alert_message,
   };
 
   module_t *bitcoin_module;
