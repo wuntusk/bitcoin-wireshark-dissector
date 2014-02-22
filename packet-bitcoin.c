@@ -202,6 +202,15 @@ static gint hf_msg_alert_msg_length64 = -1;
 static gint hf_msg_alert_version = -1;
 static gint hf_msg_alert_relayuntil = -1;
 static gint hf_msg_alert_expiration = -1;
+static gint hf_msg_alert_id = -1;
+static gint hf_msg_alert_cancel = -1;
+static gint hf_msg_alert_cancel_set_count8 = -1;
+static gint hf_msg_alert_cancel_set_count16 = -1;
+static gint hf_msg_alert_cancel_set_count32 = -1;
+static gint hf_msg_alert_cancel_set_count64 = -1;
+static gint hf_msg_alert_cancel_set_item = -1;
+static gint hf_msg_alert_min_version = -1;
+static gint hf_msg_alert_max_version = -1;
 static gint hf_msg_alert_signature = -1;
 static gint hf_msg_alert_signature_length8 = -1;
 static gint hf_msg_alert_signature_length16 = -1;
@@ -983,7 +992,7 @@ dissect_bitcoin_msg_alert(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tre
   proto_item *ti;
   guint32     offset = 0;
   gint        varint_length;
-  guint64     msg_length,sig_length;
+  guint64     msg_length,sig_length,set_length;
   proto_tree  *subtree;
 
   if (!tree)
@@ -993,23 +1002,52 @@ dissect_bitcoin_msg_alert(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tre
   tree = proto_item_add_subtree(ti, ett_alert);
 
   /* message portion*/
-
-  ti   = proto_tree_add_item(tree, hf_msg_alert_message, tvb, offset, -1, ENC_NA);
-  subtree = proto_item_add_subtree(ti, ett_alert_message);
   get_varint(tvb, offset, &varint_length, &msg_length);
+
+  ti   = proto_tree_add_item(tree, hf_msg_alert_message, tvb, offset, varint_length+msg_length, ENC_NA);
+  subtree = proto_item_add_subtree(ti, ett_alert_message);
+
   add_varint_item(subtree, tvb, offset, varint_length, hf_msg_alert_msg_length8, hf_msg_alert_msg_length16,
                   hf_msg_alert_msg_length32, hf_msg_alert_msg_length64);
   offset += varint_length;
 
-  /* version */
+  // version 
   proto_tree_add_item(subtree, hf_msg_alert_version,  tvb, offset,  4, ENC_LITTLE_ENDIAN);
   offset += 4;
 
+  // times 
   proto_tree_add_item(subtree, hf_msg_alert_relayuntil, tvb, offset, 8, ENC_TIME_TIMESPEC|ENC_LITTLE_ENDIAN);
   offset += 8;
   proto_tree_add_item(subtree, hf_msg_alert_expiration, tvb, offset, 8, ENC_TIME_TIMESPEC|ENC_LITTLE_ENDIAN);
   offset += 8;
-  offset += (msg_length-20);
+
+  // id & cancel 
+  proto_tree_add_item(subtree, hf_msg_alert_id,  tvb, offset,  4, ENC_LITTLE_ENDIAN);
+  offset += 4;
+  proto_tree_add_item(subtree, hf_msg_alert_cancel,  tvb, offset,  4, ENC_LITTLE_ENDIAN);
+  offset += 4;
+
+  // cancel set 
+  get_varint(tvb, offset, &varint_length, &set_length);
+  add_varint_item(subtree, tvb, offset, varint_length, hf_msg_alert_cancel_set_count8, hf_msg_alert_cancel_set_count16,
+                  hf_msg_alert_cancel_set_count32, hf_msg_alert_cancel_set_count64);
+  offset += varint_length;
+
+  for (; set_length > 0; set_length--)
+  {
+    // should put this in a sub list
+    //subtree = proto_item_add_subtree(ti, ett_inv_list);
+
+    proto_tree_add_item(subtree, hf_msg_alert_cancel_set_item, tvb, offset, 4, ENC_LITTLE_ENDIAN);
+    offset += 4;
+  }
+
+  proto_tree_add_item(subtree, hf_msg_alert_min_version,  tvb, offset,  4, ENC_LITTLE_ENDIAN);
+  offset += 4;
+  proto_tree_add_item(subtree, hf_msg_alert_max_version,  tvb, offset,  4, ENC_LITTLE_ENDIAN);
+  offset += 4;
+
+  offset += (msg_length-37);
 
   /* signature portion*/
   ti   = proto_tree_add_item(tree, hf_msg_alert_signature, tvb, offset, -1, ENC_NA);
@@ -1380,6 +1418,33 @@ proto_register_bitcoin(void)
     },
     { &hf_msg_alert_expiration,
       { "Expiration", "bitcoin.alert.message.expiration", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_LOCAL, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_id,
+      { "Id", "bitcoin.alert.message.id", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_cancel,
+      { "Cancel", "bitcoin.alert.message.cancel", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_cancel_set_count8,
+      { "Cancel Set Count", "bitcoin.alert.cancelsetcount", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_cancel_set_count16,
+      { "Cancel Set Count", "bitcoin.alert.cancelsetcount", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_cancel_set_count32,
+      { "Cancel Set Count", "bitcoin.alert.cancelsetcount", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_cancel_set_count64,
+      { "Cancel Set Count", "bitcoin.alert.cancelsetcount", FT_UINT64, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_cancel_set_item,
+      { "Cancel Set Item", "bitcoin.alert.cancelsetitem", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_min_version,
+      { "Min Version", "bitcoin.alert.message.minversion", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_max_version,
+      { "Max Version", "bitcoin.alert.message.maxversion", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }
     },
     { &hf_msg_alert_signature,
       { "Signature", "bitcoin.alert.signature", FT_NONE, BASE_NONE, NULL, 0x0, NULL, HFILL }
