@@ -221,6 +221,21 @@ static gint hf_msg_alert_subver_set_str_length32 = -1;
 static gint hf_msg_alert_subver_set_str_length64 = -1;
 static gint hf_msg_alert_subver_set_string = -1;
 static gint hf_msg_alert_priority = -1;
+static gint hf_msg_alert_str_comment_length8= -1;
+static gint hf_msg_alert_str_comment_length16= -1;
+static gint hf_msg_alert_str_comment_length32= -1;
+static gint hf_msg_alert_str_comment_length64= -1;
+static gint hf_msg_alert_str_comment= -1;
+static gint hf_msg_alert_str_status_bar_length8= -1;
+static gint hf_msg_alert_str_status_bar_length16= -1;
+static gint hf_msg_alert_str_status_bar_length32= -1;
+static gint hf_msg_alert_str_status_bar_length64= -1;
+static gint hf_msg_alert_str_status_bar= -1;
+static gint hf_msg_alert_str_reserved_length8= -1;
+static gint hf_msg_alert_str_reserved_length16= -1;
+static gint hf_msg_alert_str_reserved_length32= -1;
+static gint hf_msg_alert_str_reserved_length64= -1;
+static gint hf_msg_alert_str_reserved= -1;
 static gint hf_msg_alert_signature = -1;
 static gint hf_msg_alert_signature_length8 = -1;
 static gint hf_msg_alert_signature_length16 = -1;
@@ -1002,7 +1017,7 @@ dissect_bitcoin_msg_alert(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tre
   proto_item *ti;
   guint32     offset = 0;
   gint        varint_length;
-  guint64     msg_length,sig_length,set_length;
+  guint64     msg_length,sig_length,set_length,str_length;
   proto_tree  *subtree;
 
   if (!tree)
@@ -1087,7 +1102,35 @@ dissect_bitcoin_msg_alert(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tre
   proto_tree_add_item(subtree, hf_msg_alert_priority,  tvb, offset,  4, ENC_LITTLE_ENDIAN);
   offset += 4;
 
-  offset += (msg_length-43);
+  // string messages -- comment
+    get_varint(tvb, offset, &varint_length, &str_length);
+    add_varint_item(subtree, tvb, offset, varint_length,hf_msg_alert_str_comment_length8, 
+                          hf_msg_alert_str_comment_length16, 
+                          hf_msg_alert_str_comment_length32,hf_msg_alert_str_comment_length64); 
+    offset += varint_length;
+
+    proto_tree_add_item(subtree,hf_msg_alert_str_comment, tvb, offset, str_length, ENC_ASCII|ENC_NA);
+    offset += str_length;
+
+  // string messages -- status bar
+    get_varint(tvb, offset, &varint_length, &str_length);
+    add_varint_item(subtree, tvb, offset, varint_length,hf_msg_alert_str_status_bar_length8, 
+                          hf_msg_alert_str_status_bar_length16, 
+                          hf_msg_alert_str_status_bar_length32,hf_msg_alert_str_status_bar_length64); 
+    offset += varint_length;
+
+    proto_tree_add_item(subtree,hf_msg_alert_str_status_bar, tvb, offset, str_length, ENC_ASCII|ENC_NA);
+    offset += str_length;
+
+  // string messages -- reserved
+    get_varint(tvb, offset, &varint_length, &str_length);
+    add_varint_item(subtree, tvb, offset, varint_length,hf_msg_alert_str_reserved_length8, 
+                          hf_msg_alert_str_reserved_length16, 
+                          hf_msg_alert_str_reserved_length32,hf_msg_alert_str_reserved_length64); 
+    offset += varint_length;
+
+    proto_tree_add_item(subtree,hf_msg_alert_str_reserved, tvb, offset, str_length, ENC_ASCII|ENC_NA);
+    offset += str_length;
 
   /* signature portion*/
   ti   = proto_tree_add_item(tree, hf_msg_alert_signature, tvb, offset, -1, ENC_NA);
@@ -1515,6 +1558,51 @@ proto_register_bitcoin(void)
     },
     { &hf_msg_alert_priority,
       { "Priority", "bitcoin.alert.message.priority", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_str_comment_length8,
+      { "Length", "bitcoin.alert.commentlength", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_str_comment_length16,
+      { "Length", "bitcoin.alert.commentlength", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_str_comment_length32,
+      { "Length", "bitcoin.alert.commentlength", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_str_comment_length64,
+      { "Length", "bitcoin.alert.commentlength", FT_UINT64, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_str_comment,
+      { "Comment", "bitcoin.alert.comment", FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_str_status_bar_length8,
+      { "Length", "bitcoin.alert.statusbarlength", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_str_status_bar_length16,
+      { "Length", "bitcoin.alert.statusbarlength", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_str_status_bar_length32,
+      { "Length", "bitcoin.alert.statusbarlength", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_str_status_bar_length64,
+      { "Length", "bitcoin.alert.statusbarlength", FT_UINT64, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_str_status_bar,
+      { "Status Bar", "bitcoin.alert.statusbar", FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_str_reserved_length8,
+      { "Length", "bitcoin.alert.reservedlength", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_str_reserved_length16,
+      { "Length", "bitcoin.alert.reservedlength", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_str_reserved_length32,
+      { "Length", "bitcoin.alert.reservedlength", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_str_reserved_length64,
+      { "Length", "bitcoin.alert.reservedlength", FT_UINT64, BASE_DEC, NULL, 0x0, NULL, HFILL }
+    },
+    { &hf_msg_alert_str_reserved,
+      { "Reserved", "bitcoin.alert.reserved", FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }
     },
     { &hf_msg_alert_signature,
       { "Signature", "bitcoin.alert.signature", FT_NONE, BASE_NONE, NULL, 0x0, NULL, HFILL }
