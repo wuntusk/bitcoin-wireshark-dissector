@@ -12,8 +12,7 @@ The current dissector in 1.10.5 is really wrong and can't even decode some of th
 in the development tree has fixes for the basic messages but doesn't do much more than that.
 
 So I spent a couple days poking at the source of the 1.10.5 dissector and came up with this.  It's not perfect, in fact
-it's not even good but it will do the job better than what's out there that I could find. I started it as a plug-in but
-then just switched to replacing the built-in dissector.
+it's not even good but it's better than what I could find. I started it as a plug-in but then just switched to replacing the built-in dissector.
 
 
 Additions over the existing dissector in 1.10.5:
@@ -40,6 +39,7 @@ If anyone wants to drag this over to the wireshark source tree feel free.
 Monty
 
 1AdWh9zAPCGKwHLagugoDNzpeyokwhbwNP
+
 D6kTfuNz3dhvoqvjpY5kWRp68KhsDHFEty
 
 
